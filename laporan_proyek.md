@@ -23,8 +23,6 @@ Refrensi :
 2. Menyediakan rekomendasi yang relevan dengan mempertimbangkan preferensi pelanggan, termasuk batasan harga, untuk meningkatkan pengalaman belanja dan konversi penjualan.
 
 
-**Rubrik/Kriteria Tambahan (Opsional)**:
-
   ### Solution statements
    - Pendekatan 1: Content-Based Filtering dengan Cosine Similarity
 Menggunakan fitur produk (kategori, warna, harga, deskripsi) yang diencode dan diubah menjadi vektor untuk menghitung kesamaan antar produk menggunakan cosine similarity. Pendekatan ini sederhana dan efektif untuk dataset dengan fitur yang kaya.
@@ -164,8 +162,8 @@ Alasan :
 4. Contoh Output
 Proses :
 - Menguji fungsi dengan tiga productId pertama, menggunakan price_range=10.
-- Menampilkan top-5 rekomendasi untuk setiap produk.
-
+- Menampilkan top 5 rekomendasi untuk setiap produk.
+![Rekomendasi Top 5](Rekomendasi_Top_N.png)
 
 ## Evaluation
 Untuk evaluasi dilakukan dengan secara kualitatif dengan menganalisis relevansi rekomendasi berdasarkan kategori, warna, harga, dan skor kesamaan. Berikut merupakan detail dari tahapan proses evaluasi yang telah dilakukan :
@@ -219,8 +217,8 @@ Kesimpulan :
 1. Model berhasil memberikan rekomendasi yang relevan berdasarkan kategori, warna, dan harga.
 2. Fitur TF-IDF dari details dan materials memperkaya kesamaan, terutama untuk produk dengan deskripsi atau bahan spesifik.
 3. Filter price_range memastikan rekomendasi sesuai dengan anggaran pengguna.
-4. Kelemahan: Model tidak mempertimbangkan preferensi pengguna (contoh, riwayat pembelian), yang dapat ditingkatkan dengan pendekatan kolaboratif.
-5. Saran: Mengintegrasikan data interaksi pengguna dan menguji algoritma alternatif seperti KNN atau matrix factorization untuk meningkatkan personalisasi.
+4. Kelemahan: Model tidak mempertimbangkan preferensi pengguna (contoh, riwayat pembelian), yang dapat ditingkatkan dengan model collaborative.
+5. Saran: Dapat menambahkan data preferensi pengguna dan rating agar model berbasis collaborative dapat dilaksanakan.
 
 
 
