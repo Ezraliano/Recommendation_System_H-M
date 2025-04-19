@@ -172,7 +172,7 @@ Untuk evaluasi dilakukan dengan cara menerapkan metrik evaluasi Precision@k, Rec
 1. Precision@k
 Precision@k adalah proporsi item relevan dalam top-k rekomendasi, dihitung sebagai:
 Rumus: 
-[ \text{Precision@k} = \frac{\text{Jumlah item relevan di top-k}}{k} ]
+\[ \text{Precision@k} = \frac{\text{Jumlah item relevan di top-k}}{k} \]
 
 Penerapan :
 - Relevansi didefinisikan berdasarkan mainCatCode (kategori sama dengan produk asli).
