@@ -9,6 +9,8 @@ Original file is located at
 ## Import Library
 """
 
+!pip install tabulate
+
 import pandas as pd
 import numpy as np
 import seaborn as sns
@@ -18,6 +20,7 @@ import warnings
 warnings.filterwarnings('ignore')
 import matplotlib.pyplot as plt
 from sklearn.metrics.pairwise import cosine_similarity
+from tabulate import tabulate
 
 """Deskripsi :
 Mengimpor pustaka yang diperlukan untuk analisis data, visualisasi, preprocessing, dan modeling:
@@ -109,7 +112,7 @@ for col in categorical_cols:
 
     # Count plot (batasi jika terlalu banyak kategori)
     plt.figure(figsize=(10, 5))
-    if hm1[col].nunique() <= 20:  # Batasi untuk kolom dengan <= 20 kategori
+    if hm1[col].nunique() <= 20:
         sns.countplot(y=hm1[col], order=hm1[col].value_counts().index[:20])
         plt.title(f'Distribusi {col}')
         plt.xlabel('Jumlah')
@@ -135,13 +138,13 @@ Alasan :
 print("Jumlah Missing Values Sebelum Preprocessing:")
 print(hm1.isnull().sum())
 
-# - details: Isi dengan string kosong
+# details: Isi dengan string kosong
 hm1['details'].fillna('', inplace=True)
 
-# - materials: Isi dengan string kosong
+# materials: Isi dengan string kosong
 hm1['materials'].fillna('', inplace=True)
 
-# - colorShades: Isi dengan 'Unknown'
+# colorShades: Isi dengan 'Unknown'
 hm1['colorShades'].fillna('Unknown', inplace=True)
 
 # Verifikasi missing values setelah penanganan
@@ -223,12 +226,12 @@ Alasan :
 """
 
 # Langkah 6: Feature Engineering
-# - Buat segmen harga
+#  Buat segmen harga
 hm1_encoded['price_segment'] = pd.cut(hm1['price'],
                                      bins=[0, 30, 50, float('inf')],
                                      labels=['Murah', 'Menengah', 'Premium'])
 
-# - Ekstraksi TF-IDF untuk details dan materials
+#  Ekstraksi TF-IDF untuk details dan materials
 tfidf = TfidfVectorizer(max_features=100, stop_words='english')
 tfidf_details = tfidf.fit_transform(hm1['details'])
 tfidf_details_df = pd.DataFrame(tfidf_details.toarray(),
@@ -252,7 +255,6 @@ hm1_encoded = pd.concat([hm1_encoded.reset_index(drop=True),
 """
 
 # Langkah 7: Menangani Kolom colors
-# (Diasumsikan sebagai string, tidak diencode karena redundan dengan colorName)
 hm1_encoded = hm1_encoded.drop(columns=['colors'], errors='ignore')
 
 """Deskripsi :
@@ -263,7 +265,7 @@ hm1_encoded = hm1_encoded.drop(columns=['colors'], errors='ignore')
 # Gabungkan semua fitur
 hm1_encoded = pd.concat([
     hm1[['productId', 'price']].reset_index(drop=True),
-    hm1_encoded[['price_scaled']].reset_index(drop=True), # Use hm1_encoded['price_scaled'] instead of price_scaled
+    hm1_encoded[['price_scaled']].reset_index(drop=True),
     encoded_cats_df.reset_index(drop=True),
     tfidf_details_df.reset_index(drop=True),
     tfidf_materials_df.reset_index(drop=True)
@@ -322,7 +324,7 @@ def get_recommendations(product_id, num_recommendations=5, price_range=None):
 
     # Urutkan berdasarkan skor kesamaan
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-    sim_scores = sim_scores[1:num_recommendations+1]  # Lewati produk itu sendiri
+    sim_scores = sim_scores[1:num_recommendations+1]
 
     # Ambil indeks produk yang direkomendasikan
     product_indices = [i[0] for i in sim_scores]
@@ -347,8 +349,23 @@ for pid in sample_product_ids:
 """Deskripsi :    
 - Mengambil tiga productId pertama dari hm1_encoded.
 - Untuk setiap ID, memanggil get_recommendations dengan price_range=10 dan menampilkan hasilnya.
+"""
 
-## Evaluasi Model
+# Langkah 5: Rekomendasi Top N dalam bentuk Tabel
+sample_product_ids = hm1_encoded['productId'].head(3).tolist()
+
+for pid in sample_product_ids:
+    print(f"\nRekomendasi untuk productId={pid} (dengan price_range=10):")
+    recommendations = get_recommendations(product_id=pid, num_recommendations=5, price_range=10)
+    if isinstance(recommendations, str):
+        print(recommendations)
+    else:
+        recommendations.insert(0, 'Rank', range(1, len(recommendations) + 1))
+        recommendations['price'] = recommendations['price'].round(2)
+        print(tabulate(recommendations, headers='keys', tablefmt='psql', showindex=False))
+
+"""## Evaluasi Model
+
 """
 
 # Langkah 1: Pilih produk contoh dari kategori berbeda
@@ -361,59 +378,106 @@ sample_categories = sample_products['mainCatCode'].tolist()
 - Memilih satu produk dari tiga kategori berbeda menggunakan groupby('mainCatCode').head(1)
 """
 
-# Langkah 2: Tampilkan rekomendasi untuk setiap produk contoh
-for pid, cat in zip(sample_product_ids, sample_categories):
-    print(f"\n=== Rekomendasi untuk productId={pid} (Kategori: {cat}) ===")
-    print("Produk Asli:")
-    # Include 'details' and 'materials' when creating hm1_info
-    print(hm1[hm1['productId'] == pid][['productId', 'price', 'colorName', 'mainCatCode', 'brandName', 'newArrival', 'details', 'materials']])
-    print("\nProduk yang Direkomendasikan (dengan price_range=10):")
+# Langkah 2: Fungsi untuk menghitung precision@k, recall@k, f1-score@k, dan ndcg@k
+def evaluate_recommendations(product_id, k=5, price_range=None):
+    # Dapatkan rekomendasi
+    idx = hm1_encoded.index[hm1_encoded['productId'] == product_id].tolist()
+    if not idx:
+        return None, None, None, None
+    idx = idx[0]
 
-    # Get recommendations and similarity scores
-    idx = hm1_encoded.index[hm1_encoded['productId'] == pid].tolist()[0]
+    # Ambil skor kesamaan dan urutkan
     sim_scores = list(enumerate(similarity_matrix[idx]))
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
-    sim_scores = sim_scores[1:6]  # Lewati produk itu sendiri dan ambil 5 teratas
+    sim_scores = sim_scores[1:k+1]
+    product_indices = [i[0] for i in sim_scores]
 
-    # Fix: Extract product indices and similarity scores correctly
-    product_indices = [i for i, s in sim_scores] # Corrected line
-    similarity_scores = [s for i, s in sim_scores]
+    # Dapatkan kategori produk asli
+    original_category = hm1_info.loc[hm1_info['productId'] == product_id, 'mainCatCode'].iloc[0]
 
-    recommendations = hm1_info.iloc[product_indices][['productId', 'price', 'colorName', 'mainCatCode', 'brandName', 'newArrival']]
-    recommendations['similarity_score'] = similarity_scores # Add similarity score to recommendations
+    # Hitung item relevan dalam rekomendasi (berdasarkan mainCatCode)
+    recommended_items = hm1_info.iloc[product_indices]['mainCatCode']
+    relevant_items = (recommended_items == original_category).sum()
 
-    print(recommendations)
-    print("\nInterpretasi:")
-    # Analisis kualitatif
-    same_category = (recommendations['mainCatCode'] == cat).sum()
-    similar_colors = recommendations['colorName'].str.contains(hm1_info.loc[hm1_info['productId'] == pid, 'colorName'].iloc[0], case=False, na=False).sum()
-    print(f"- {same_category}/5 rekomendasi memiliki kategori yang sama ({cat}).")
-    print(f"- {similar_colors}/5 rekomendasi memiliki warna serupa.")
-    print(f"- Rentang harga rekomendasi: ${recommendations['price'].min():.2f} - ${recommendations['price'].max():.2f}")
-    print(f"- Skor kesamaan: {recommendations['similarity_score'].min():.3f} - {recommendations['similarity_score'].max():.3f}") # Now you can access similarity_score
+    # Total item relevan dalam dataset
+    total_relevant = (hm1_info['mainCatCode'] == original_category).sum() - 1
+
+    # Precision@k: (jumlah item relevan di top-k) / k
+    precision = relevant_items / k if k > 0 else 0
+
+    # Recall@k: (jumlah item relevan di top-k) / (total item relevan)
+    recall = relevant_items / total_relevant if total_relevant > 0 else 0
+
+    # F1-score@k: 2 * (precision * recall) / (precision + recall)
+    f1_score = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+
+    # NDCG@k: Normalisasi Discounted Cumulative Gain
+    # Relevansi: 1 jika kategori sama, 0 jika berbeda
+    relevance_scores = [1 if hm1_info.iloc[i]['mainCatCode'] == original_category else 0 for i in product_indices]
+    dcg = sum(rel / np.log2(idx + 2) for idx, rel in enumerate(relevance_scores))
+    ideal_relevance = [1] * min(k, total_relevant) + [0] * (k - min(k, total_relevant))
+    idcg = sum(rel / np.log2(idx + 2) for idx, rel in enumerate(ideal_relevance))
+    ndcg = dcg / idcg if idcg > 0 else 0
+    return precision, recall, f1_score, ndcg
 
 """Deskripsi :    
-- Menampilkan informasi produk asli, termasuk details dan materials.
-- Menghitung rekomendasi dengan cara yang sama seperti fungsi sebelumnya, tetapi menyertakan skor kesamaan.
-- Menganalisis rekomendasi secara kualitatif, menghitung :    
-  - Jumlah rekomendasi dalam kategori yang sama.
-  - Jumlah rekomendasi dengan warna serupa (menggunakan pencocokan string).
-  - Rentang harga rekomendasi.
-  - Rentang skor kesamaan.
-
-Alasan :    
-- Analisis ini mengevaluasi kualitas rekomendasi berdasarkan kategori, warna, dan harga.
-- Penyertaan details dan materials memberikan konteks tambahan tentang produk asli.
-- Interpretasi kualitatif membantu memahami apakah sistem merekomendasikan produk yang relevan.
+- Tujuan dari source code ini adalah untuk Menghitung metrik evaluasi Precision@k, Recall@k, F1-score@k, dan NDCG@k untuk rekomendasi top-k produk berdasarkan cosine similarity.
 """
 
-# Langkah 3: Analisis distribusi skor kesamaan
+# Langkah 3: Evaluasi untuk setiap produk contoh
+k = 5
+results = []
+for pid, cat in zip(sample_product_ids, sample_categories):
+    precision, recall, f1_score, ndcg = evaluate_recommendations(pid, k=k, price_range=10)
+    if precision is not None:
+        print(f"\n=== Evaluasi untuk productId={pid} (Kategori: {cat}) ===")
+        print(f"Precision@{k}: {precision:.3f}")
+        print(f"Recall@{k}: {recall:.3f}")
+        print(f"F1-score@{k}: {f1_score:.3f}")
+        print(f"NDCG@{k}: {ndcg:.3f}")
+        results.append({
+            'productId': pid,
+            'mainCatCode': cat,
+            'precision': precision,
+            'recall': recall,
+            'f1_score': f1_score,
+            'ndcg': ndcg
+        })
+
+"""Deskripsi :
+- Menerapkan fungsi evaluate_recommendations pada tiga produk contoh dari kategori berbeda dan menyimpan hasil metrik.
+"""
+
+# Langkah 4: Hitung rata-rata metrik
+results_df = pd.DataFrame(results)
+avg_precision = results_df['precision'].mean()
+avg_recall = results_df['recall'].mean()
+avg_f1_score = results_df['f1_score'].mean()
+avg_ndcg = results_df['ndcg'].mean()
+print("\n=== Ringkasan Evaluasi ===")
+# Langkah 4: Hitung rata-rata metrik
+results_df = pd.DataFrame(results)
+avg_precision = results_df['precision'].mean()
+avg_recall = results_df['recall'].mean()
+avg_f1_score = results_df['f1_score'].mean()
+avg_ndcg = results_df['ndcg'].mean()
+print("\n=== Ringkasan Evaluasi ===")
+print(f"Rata-rata Precision@{k}: {avg_precision:.3f}")
+print(f"Rata-rata Recall@{k}: {avg_recall:.3f}")
+print(f"Rata-rata F1-score@{k}: {avg_f1_score:.3f}")
+print(f"Rata-rata NDCG@{k}: {avg_ndcg:.3f}")
+
+"""Deskripsi :    
+- Mengagregasi hasil evaluasi untuk memberikan gambaran keseluruhan performa model.
+"""
+
+# Langkah 5: Visualisasi distribusi skor kesamaan
 plt.figure(figsize=(8, 4))
 sns.histplot(similarity_matrix.flatten(), bins=50, kde=True)
 plt.title('Distribusi Skor Kesamaan (Cosine Similarity)')
 plt.xlabel('Skor Kesamaan')
 plt.ylabel('Frekuensi')
-plt.show()
+plt.savefig('similarity_distribution.png')
 
 """Deskripsi :    
 - similarity_matrix.flatten() mengubah matriks kesamaan menjadi array satu dimensi.

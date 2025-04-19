@@ -163,62 +163,149 @@ Alasan :
 Proses :
 - Menguji fungsi dengan tiga productId pertama, menggunakan price_range=10.
 - Menampilkan top 5 rekomendasi untuk setiap produk.
+
 ![Rekomendasi Top 5](Rekomendasi_Top_N.png)
 
 ## Evaluation
-Untuk evaluasi dilakukan dengan secara kualitatif dengan menganalisis relevansi rekomendasi berdasarkan kategori, warna, harga, dan skor kesamaan. Berikut merupakan detail dari tahapan proses evaluasi yang telah dilakukan :
-1. Metrik Evaluasi
-- Relevansi Kategori: Persentase rekomendasi dengan mainCatCode sama dengan produk asli.
-  - Formula: (jumlah rekomendasi dengan kategori sama) / total rekomendasi.
-  - Cara Kerja: Mengukur apakah model memprioritaskan produk dalam kategori yang sama (misalnya, "Ladieswear").
-- Relevansi Warna: Jumlah rekomendasi dengan warna serupa (dihitung dengan str.contains untuk pencocokan string).
-  - Formula: (jumlah rekomendasi dengan warna serupa) / total rekomendasi.
-  - Cara Kerja: Mengevaluasi apakah warna produk asli (misalnya, "Blue") muncul di rekomendasi.
-- Relevansi Harga: Rentang harga rekomendasi dibandingkan dengan harga produk asli.
-  - Formula: (min(harga rekomendasi), max(harga rekomendasi)).
-  - Cara Kerja: Memastikan harga rekomendasi berada dalam price_range ($10).
-- Distribusi Skor Kesamaan: Histogram skor kesamaan dari similarity_matrix.
-  - Formula: Distribusi frekuensi skor kesamaan (0 hingga 1).
-  - Cara Kerja: Menganalisis apakah model membedakan produk serupa (skor tinggi) dan tidak serupa (skor rendah).
+Untuk evaluasi dilakukan dengan cara menerapkan metrik evaluasi Precision@k, Recall@k, F1-score@k, dan metrik Normalized Discounted Cumulative Gain. Berikut merupakan penjelasan dari metrik evaluasi tersebut :
 
-2. Proses Evaluasi
-- Pemilihan Sampel:
-  - Memilih tiga produk dari kategori berbeda menggunakan hm1_info.groupby('mainCatCode').head(1).
-  - Contoh: Produk dari "Ladieswear", "Menswear", dan "Kidswear".
-- Analisis Rekomendasi:
-  - Untuk setiap produk, menampilkan (Informasi produk asli (productId, price, colorName, mainCatCode, brandName, newArrival, details, materials)).
-  - Top-5 rekomendasi dengan price_range=10, termasuk skor kesamaan.
-- Perhitungan :
-  - Jumlah rekomendasi dengan kategori sama.
-  - Jumlah rekomendasi dengan warna serupa.
-  - Rentang harga rekomendasi.
-  - Rentang skor kesamaan.
-- Distribusi Skor Kesamaan:
-  - Membuat histogram dengan sns.histplot(similarity_matrix.flatten(), bins=50, kde=True) untuk melihat distribusi skor kesamaan.
+1. Precision@k
+Precision@k adalah proporsi item relevan dalam top-k rekomendasi, dihitung sebagai:
+Rumus: 
+[ \text{Precision@k} = \frac{\text{Jumlah item relevan di top-k}}{k} ]
 
-3. Hasil Evaluasi
-- Relevansi Kategori:
-  - Rata-rata 3–4 dari 5 rekomendasi berada dalam kategori yang sama (misalnya, "Ladieswear").
-  - Interpretasi: Fitur mainCatCode memiliki bobot tinggi dalam perhitungan kesamaan.
-- Relevansi Warna:
-  - Sekitar 2–3 dari 5 rekomendasi memiliki warna serupa (misalnya, "Blue" atau "Navy" untuk produk "Blue").
-  - Interpretasi: Fitur colorName relevan, tetapi variasi warna menambah keragaman rekomendasi.
-- Relevansi Harga:
-  - Harga rekomendasi berada dalam kisaran ±$10 dari produk asli (misalnya, produk $30 menghasilkan rekomendasi $20–$40).
-  - Interpretasi: Filter price_range berfungsi dengan baik.
-- Distribusi Skor Kesamaan:
-  - Histogram menunjukkan distribusi skor dari 0 hingga 1, dengan puncak di 0.2–0.4.
-  - Interpretasi: Model membedakan produk serupa (skor >0.5) dan tidak serupa (skor <0.2), dengan sebagian besar produk memiliki kesamaan sedang.
-- Kontribusi TF-IDF:
-  - Fitur TF-IDF dari details dan materials meningkatkan relevansi untuk produk dengan kata kunci serupa (sebagai contoh, "cotton" atau "denim").
-  - Contoh: Produk dengan materials="cotton" cenderung merekomendasikan produk berbahan serupa.
+Penerapan :
+- Relevansi didefinisikan berdasarkan mainCatCode (kategori sama dengan produk asli).
+- Sebagai Contoh jika 3 dari 5 rekomendasi memiliki kategori yang sama, maka Precision@5 = 3/5 = 0.6.
+- Proses ini digunakan untuk mengukur akurasi rekomendasi, yaitu seberapa banyak rekomendasi yang benar-benar relevan.
 
-Kesimpulan :
-1. Model berhasil memberikan rekomendasi yang relevan berdasarkan kategori, warna, dan harga.
-2. Fitur TF-IDF dari details dan materials memperkaya kesamaan, terutama untuk produk dengan deskripsi atau bahan spesifik.
-3. Filter price_range memastikan rekomendasi sesuai dengan anggaran pengguna.
-4. Kelemahan: Model tidak mempertimbangkan preferensi pengguna (contoh, riwayat pembelian), yang dapat ditingkatkan dengan model collaborative.
-5. Saran: Dapat menambahkan data preferensi pengguna dan rating agar model berbasis collaborative dapat dilaksanakan.
+Konteks dalam Project :
+- Digunakan untuk mengukur akurasi rekomendasi, yaitu seberapa banyak rekomendasi yang benar-benar relevan.
+
+2. Recall@k
+Recall@k adalah proporsi item relevan yang berhasil direkomendasikan dari total item relevan dalam dataset, dihitung sebagai:
+Rumus :
+[ \text{Recall@k} = \frac{\text{Jumlah item relevan di top-k}}{\text{Total item relevan di dataset}} ]
+
+Penerapan :
+- Total item relevan adalah jumlah produk dengan mainCatCode yang sama (dikurangi produk itu sendiri)
+- Sebagai Contoh: Jika ada 10 produk relevan di dataset dan 3 di antaranya ada di top-5, maka Recall@5 = 3/10 = 0.3.
+- Mengukur kelengkapan rekomendasi, yaitu seberapa banyak item relevan yang ditemukan.
+
+Konteks dalam project :
+- Menilai apakah sistem dapat menemukan sebagian besar produk relevan dalam kategori yang sama
+
+3. F1-score@k
+F1-score@k adalah rata-rata harmonik dari precision@k dan recall@k, dihitung sebagai:
+Rumus :
+[ \text{F1-score@k} = 2 \cdot \frac{\text{Precision@k} \cdot \text{Recall@k}}{\text{Precision@k} + \text{Recall@k}} ]
+
+Penerapan :
+- Menggabungkan precision dan recall untuk memberikan ukuran keseimbangan antara akurasi dan kelengkapan
+- Sebagai Contoh: Jika Precision@5 = 0.6 dan Recall@5 = 0.3, maka F1-score@5 = 2 * (0.6 * 0.3) / (0.6 + 0.3) = 0.4.
+- Digunakan ketika precision dan recall sama pentingnya.
+
+Konteks dalam project :
+- Memberikan gambaran menyeluruh tentang performa sistem, terutama jika precision tinggi tetapi recall rendah, atau sebaliknya.
+
+4. NDCG@k
+Normalized Discounted Cumulative Gain (NDCG@k) mengukur kualitas peringkat rekomendasi dengan mempertimbangkan relevansi dan posisi item, dihitung sebagai:
+Rumus :
+[ \text{DCG@k} = \sum_{i=1}^k \frac{\text{rel}_i}{\log_2(i+1)}, \quad \text{NDCG@k} = \frac{\text{DCG@k}}{\text{IDCG@k}} ] Di mana (\text{rel}_i = 1) jika item relevan, 0 jika tidak, dan (\text{IDCG@k}) adalah DCG ideal.
+
+Penerapan :
+- Relevansi: 1 jika mainCatCode sama, 0 jika berbeda.
+- Posisi penting: Item relevan di peringkat atas memberikan kontribusi lebih besar.
+- Sebagai Contoh: Jika top-5 memiliki relevansi [1, 1, 0, 0, 1], DCG dihitung dengan diskon logaritmik, lalu dinormalisasi dengan IDCG (misalnya, [1, 1, 1, 0, 0]).
+- Nilai NDCG@k berkisar dari 0 hingga 1, dengan 1 menunjukkan peringkat sempurna.
+
+Konteks dalam project :
+- Mengukur apakah item relevan muncul di posisi atas daftar rekomendasi, yang penting untuk pengalaman pengguna (item terbaik harus muncul lebih awal)
+
+Hubungkan dengan Business Understanding
+1. Problem Statements
+A.  Kurangnya rekomendasi produk yang relevan
+untuk menjawab problem statements kurangnya rekomendasi produk yang relevan, dapat menggunakan metrik evaluasi Precision@k, F1-score@k, NDCG@k. Berikut beberapa penjelasan pendukung :
+- Precision@k memastikan bahwa sebagian besar rekomendasi berada dalam kategori yang sama dengan produk asli, sehingga relevan dengan preferensi pelanggan (misalnya, warna atau kategori).
+- F1-score@k menyeimbangkan akurasi dan kelengkapan, memastikan bahwa rekomendasi tidak hanya relevan tetapi juga mencakup variasi produk yang sesuai.
+- NDCG@k memastikan bahwa produk paling relevan muncul di peringkat atas, meningkatkan pengalaman pengguna dengan menampilkan rekomendasi terbaik terlebih dahulu.
+
+Dampak :
+- Metrik ini secara langsung menangani masalah relevansi dengan mengukur seberapa baik sistem merekomendasikan produk yang sesuai dengan preferensi pelanggan berdasarkan kategori.
+- Nilai precision@k yang tinggi menunjukkan bahwa sistem dapat mengurangi kesulitan pelanggan dalam menemukan produk yang sesuai.
+
+B. Data produk yang kompleks:
+untuk menjawab problem statements data produk yang kompleks, dapat menggunakan metrik Recall@k, F1-score@k. Berikut beberapa penjelasan pendukung :
+- Recall@k mengukur kemampuan sistem untuk menemukan produk relevan dari dataset yang kompleks, yang mencakup berbagai fitur seperti teks (deskripsi, bahan), harga, dan kategori.
+- F1-score@k memastikan bahwa sistem dapat memproses data kompleks tanpa mengorbankan akurasi atau kelengkapan.
+
+Dampak :
+- Nilai recall@k yang wajar menunjukkan bahwa sistem berhasil memanfaatkan fitur kompleks untuk menemukan produk relevan.
+
+2. Goals
+A. Membangun sistem rekomendasi berbasis konten yang dapat menyarankan produk serupa berdasarkan fitur seperti warna, kategori, merek, harga, deskripsi, dan bahan.
+- Precision@5, F1-score@5, dan NDCG@5 yang tinggi menunjukkan bahwa sistem merekomendasikan produk serupa berdasarkan warna, kategori, merek, harga, deskripsi, dan bahan.
+- Recall@5 yang moderat mencerminkan keterbatasan dataset, bukan kegagalan model.
+Hal ini dibuktikan dengan Sistem menggunakan cosine similarity untuk menghitung kesamaan fitur, dengan hasil evaluasi yang mendukung relevansi rekomendasi.
+
+B. Menyediakan rekomendasi relevan dengan batasan harga:
+- Precision@5 dengan price_range=10 menunjukkan bahwa sistem memfilter produk sesuai anggaran.
+- NDCG@5 memastikan produk relevan dengan harga sesuai muncul di peringkat atas.
+Hal ini dibuktikan Fungsi rekomendasi mendukung filter harga, meningkatkan pengalaman belanja.
+
+3. Solution Statements
+Pendekatan: Content-Based Filtering dengan Cosine Similarity
+Pendekatan Content-Based Filtering dengan Cosine Similarity memiliki dampak yang Efektif untuk dataset dengan fitur kaya, seperti yang ditunjukkan oleh Precision@5, F1-score@5, dan NDCG@5. Keberhasilan ini diukur dengan Nilai metrik yang menunjukkan bahwa cosine similarity menghasilkan rekomendasi relevan dan terurut dengan baik.
+
+## Kesimpulan
+Proyek ini berhasil membangun sistem rekomendasi berbasis konten untuk produk H&M yang merekomendasikan produk serupa berdasarkan fitur seperti warna, kategori, merek, harga, deskripsi, dan bahan. Metrik evaluasi berikut yang mendukung keberhasilan proyek:
+- Precision@5: Mengukur relevansi rekomendasi.
+- Recall@5: Mengukur kelengkapan rekomendasi.
+- F1-score@5: Menyeimbangkan akurasi dan kelengkapan.
+- NDCG@5: Memastikan kualitas peringkat rekomendasi.
+
+Keberhasilan Terhadap Goals :
+- Sistem mencapai kedua tujuan, dengan rekomendasi relevan dan filter harga yang meningkatkan pengalaman belanja.
+
+Dampak Solution Statements :
+- Pendekatan content-based filtering dengan cosine similarity efektif dan berdampak positif, tetapi dapat ditingkatkan dengan pendekatan hibrid untuk personalisasi lebih lanjut.
+
+Rekomendasi:
+Berikut merupakan Rekomendasi yang dapat diberikan :
+1. Membuat sistem rekomendasi dengan 2 Pendekatan yaitu Pendekatan Content-Based Filtering dan Collaborative Filtering.
+2. Mengintegrasikan data preferensi pengguna untuk personalisasi.
+
+## Catatan
+- Notasi @k untuk menunjukkan bahwa metrik tersebut dihitung berdasarkan top-k item yang direkomendasikan dalam daftar hasil rekomendasi.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
