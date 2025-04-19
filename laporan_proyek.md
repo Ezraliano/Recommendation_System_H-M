@@ -185,7 +185,7 @@ Konteks dalam Project :
 2. Recall@k
 Recall@k adalah proporsi item relevan yang berhasil direkomendasikan dari total item relevan dalam dataset, dihitung sebagai:
 Rumus :
-[ \text{Recall@k} = \frac{\text{Jumlah item relevan di top-k}}{\text{Total item relevan di dataset}} ]
+$$ \text{Recall@k} = \frac{\text{Jumlah item relevan di top-k}}{\text{Total item relevan di dataset}} $$
 
 Penerapan :
 - Total item relevan adalah jumlah produk dengan mainCatCode yang sama (dikurangi produk itu sendiri)
@@ -198,7 +198,7 @@ Konteks dalam project :
 3. F1-score@k
 F1-score@k adalah rata-rata harmonik dari precision@k dan recall@k, dihitung sebagai:
 Rumus :
-[ \text{F1-score@k} = 2 \cdot \frac{\text{Precision@k} \cdot \text{Recall@k}}{\text{Precision@k} + \text{Recall@k}} ]
+$$ \text{F1-score@k} = 2 \cdot \frac{\text{Precision@k} \cdot \text{Recall@k}}{\text{Precision@k} + \text{Recall@k}} $$
 
 Penerapan :
 - Menggabungkan precision dan recall untuk memberikan ukuran keseimbangan antara akurasi dan kelengkapan
@@ -211,7 +211,8 @@ Konteks dalam project :
 4. NDCG@k
 Normalized Discounted Cumulative Gain (NDCG@k) mengukur kualitas peringkat rekomendasi dengan mempertimbangkan relevansi dan posisi item, dihitung sebagai:
 Rumus :
-[ \text{DCG@k} = \sum_{i=1}^k \frac{\text{rel}_i}{\log_2(i+1)}, \quad \text{NDCG@k} = \frac{\text{DCG@k}}{\text{IDCG@k}} ] Di mana (\text{rel}_i = 1) jika item relevan, 0 jika tidak, dan (\text{IDCG@k}) adalah DCG ideal.
+$$ \text{DCG@k} = \sum_{i=1}^k \frac{\text{rel}_i}{\log_2(i+1)}, \quad \text{NDCG@k} = \frac{\text{DCG@k}}{\text{IDCG@k}} $$
+Di mana $\text{rel}_i = 1$ jika item relevan, 0 jika tidak, dan $\text{IDCG@k}$ adalah DCG ideal.
 
 Penerapan :
 - Relevansi: 1 jika mainCatCode sama, 0 jika berbeda.
